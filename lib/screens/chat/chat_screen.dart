@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+import 'package:record/record.dart';
+import 'package:path_provider/path_provider.dart';
 import '../../providers/chat_provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../config/theme_config.dart';
 import '../../models/chat_message.dart';
 import 'package:go_router/go_router.dart';
 
@@ -18,11 +21,20 @@ class ChatScreen extends StatefulWidget {
 class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  late final AudioRecorder _audioRecorder;
+  bool _isRecording = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _audioRecorder = AudioRecorder();
+  }
 
   @override
   void dispose() {
     _messageController.dispose();
     _scrollController.dispose();
+    _audioRecorder.dispose();
     super.dispose();
   }
 
@@ -36,6 +48,69 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
+  Future<void> _startRecording() async {
+    try {
+      if (await _audioRecorder.hasPermission()) {
+        final dir = await getTemporaryDirectory();
+        final filePath = '${dir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
+
+        await _audioRecorder.start(
+          const RecordConfig(
+            encoder: AudioEncoder.aacLc,
+            bitRate: 128000,
+            sampleRate: 44100,
+          ),
+          path: filePath,
+        );
+
+        setState(() => _isRecording = true);
+        print('🎙️ Recording started: $filePath');
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Microphone permission is required for voice messages',
+                style: GoogleFonts.montserrat(),
+              ),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      print('❌ Recording error: $e');
+    }
+  }
+
+  Future<void> _stopRecordingAndSend() async {
+    try {
+      final path = await _audioRecorder.stop();
+      setState(() => _isRecording = false);
+
+      if (path != null && mounted) {
+        print('🎙️ Recording stopped: $path');
+        final chatProvider = context.read<ChatProvider>();
+        final authProvider = context.read<AuthProvider>();
+        final user = authProvider.currentUser;
+        await chatProvider.sendVoiceMessage(user?.id ?? 'guest', path);
+      }
+    } catch (e) {
+      print('❌ Stop recording error: $e');
+      setState(() => _isRecording = false);
+    }
+  }
+
+  Future<void> _cancelRecording() async {
+    try {
+      await _audioRecorder.stop();
+      setState(() => _isRecording = false);
+      print('🎙️ Recording cancelled');
+    } catch (e) {
+      setState(() => _isRecording = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final chatProvider = context.watch<ChatProvider>();
@@ -45,14 +120,16 @@ class _ChatScreenState extends State<ChatScreen> {
     // Scroll to bottom whenever messages change
     WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFB),
+      backgroundColor: isDark ? ThemeConfig.darkBackground : const Color(0xFFF8FAFB),
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: isDark ? ThemeConfig.darkSurface : Colors.white,
         elevation: 0,
         leading: widget.showBackButton 
           ? IconButton(
-              icon: const Icon(Icons.arrow_back_ios_new, color: Color(0xFF9BABBA)),
+              icon: Icon(Icons.arrow_back_ios_new, color: isDark ? ThemeConfig.darkTextSecondary : const Color(0xFF9BABBA)),
               onPressed: () => context.pop(),
             )
           : null,
@@ -86,7 +163,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 Text(
                   'Mindie',
                   style: GoogleFonts.montserrat(
-                    color: const Color(0xFF2C3E50),
+                    color: isDark ? ThemeConfig.darkTextPrimary : const Color(0xFF2C3E50),
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                   ),
@@ -111,7 +188,7 @@ class _ChatScreenState extends State<ChatScreen> {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.more_horiz, color: Color(0xFF9BABBA)),
+            icon: Icon(Icons.more_horiz, color: isDark ? ThemeConfig.darkTextSecondary : const Color(0xFF9BABBA)),
             onPressed: () {},
           ),
         ],
@@ -124,7 +201,7 @@ class _ChatScreenState extends State<ChatScreen> {
             child: Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: const Color(0xFFE8F8F5),
+                color: isDark ? ThemeConfig.primaryTeal.withOpacity(0.1) : const Color(0xFFE8F8F5),
                 borderRadius: BorderRadius.circular(25),
                 border: Border.all(color: const Color(0xFF48C9B0).withOpacity(0.3)),
               ),
@@ -204,92 +281,134 @@ class _ChatScreenState extends State<ChatScreen> {
                 ],
               ),
             ),
+
+          // Recording indicator
+          if (_isRecording)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+              child: Row(
+                children: [
+                  const Icon(Icons.fiber_manual_record, color: Colors.red, size: 12),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Recording... Tap mic to stop & send',
+                    style: GoogleFonts.montserrat(
+                      color: Colors.red,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const Spacer(),
+                  GestureDetector(
+                    onTap: _cancelRecording,
+                    child: Text(
+                      'Cancel',
+                      style: GoogleFonts.montserrat(
+                        color: const Color(0xFF9BABBA),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
             
           // Input Area
           Container(
             padding: const EdgeInsets.fromLTRB(20, 10, 20, 24),
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+            decoration: BoxDecoration(
+              color: isDark ? ThemeConfig.darkSurface : Colors.white,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
+              border: isDark ? const Border(top: BorderSide(color: ThemeConfig.darkBorder)) : null,
             ),
-            child: Column(
+            child: Row(
               children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF2F4F7),
-                          borderRadius: BorderRadius.circular(25),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.sentiment_satisfied_alt, color: Color(0xFF9BABBA)),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: TextField(
-                                controller: _messageController,
-                                decoration: InputDecoration(
-                                  hintText: 'Type a message...',
-                                  hintStyle: GoogleFonts.montserrat(
-                                    color: const Color(0xFF9BABBA),
-                                    fontSize: 14,
-                                  ),
-                                  border: InputBorder.none,
-                                ),
-                                style: GoogleFonts.montserrat(
-                                  fontSize: 14,
-                                  color: const Color(0xFF2C3E50),
-                                ),
-                                onSubmitted: (value) async {
-                                  if (value.isNotEmpty) {
-                                    final text = _messageController.text;
-                                    _messageController.clear();
-                                    await chatProvider.sendMessage(user?.id ?? 'guest', text);
-                                  }
-                                },
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                // Voice button
+                GestureDetector(
+                  onTap: () async {
+                    if (_isRecording) {
+                      await _stopRecordingAndSend();
+                    } else {
+                      await _startRecording();
+                    }
+                  },
+                  child: Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: _isRecording
+                          ? Colors.red.withOpacity(0.1)
+                          : isDark ? ThemeConfig.darkCard : const Color(0xFFF2F4F7),
+                      shape: BoxShape.circle,
                     ),
-                    const SizedBox(width: 12),
-                    GestureDetector(
-                      onTap: () async {
-                        if (_messageController.text.isNotEmpty) {
-                          final text = _messageController.text;
-                          _messageController.clear();
-                          await chatProvider.sendMessage(user?.id ?? 'guest', text);
-                        }
-                      },
-                      child: Container(
-                        width: 48,
-                        height: 48,
-                        decoration: const BoxDecoration(
-                          color: Color(0xFF48C9B0),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(Icons.send_rounded, color: Colors.white, size: 24),
-                      ),
+                    child: Icon(
+                      _isRecording ? Icons.stop_rounded : Icons.mic_none_rounded,
+                      color: _isRecording ? Colors.red : const Color(0xFF9BABBA),
+                      size: 22,
                     ),
-                  ],
+                  ),
                 ),
-                const SizedBox(height: 16),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: [
-                    IconButton(
-                        icon: const Icon(Icons.mic_none_rounded, color: Color(0xFF9BABBA)),
-                        onPressed: () {}),
-                    IconButton(
-                        icon: const Icon(Icons.image_outlined, color: Color(0xFF9BABBA)),
-                        onPressed: () {}),
-                    IconButton(
-                        icon: const Icon(Icons.add_circle_outline_rounded, color: Color(0xFF9BABBA)),
-                        onPressed: () {}),
-                  ],
+                const SizedBox(width: 10),
+                // Text input
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    decoration: BoxDecoration(
+                      color: isDark ? ThemeConfig.darkCard : const Color(0xFFF2F4F7),
+                      borderRadius: BorderRadius.circular(25),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.sentiment_satisfied_alt, color: Color(0xFF9BABBA)),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: TextField(
+                            controller: _messageController,
+                            decoration: InputDecoration(
+                              hintText: 'Type a message...',
+                              hintStyle: GoogleFonts.montserrat(
+                                color: const Color(0xFF9BABBA),
+                                fontSize: 14,
+                              ),
+                              border: InputBorder.none,
+                            ),
+                            style: GoogleFonts.montserrat(
+                              fontSize: 14,
+                              color: const Color(0xFF2C3E50),
+                            ),
+                            onSubmitted: (value) async {
+                              if (value.isNotEmpty) {
+                                final text = _messageController.text;
+                                _messageController.clear();
+                                await chatProvider.sendMessage(user?.id ?? 'guest', text);
+                              }
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                // Send button
+                GestureDetector(
+                  onTap: () async {
+                    if (_messageController.text.isNotEmpty) {
+                      final text = _messageController.text;
+                      _messageController.clear();
+                      await chatProvider.sendMessage(user?.id ?? 'guest', text);
+                    }
+                  },
+                  child: Container(
+                    width: 48,
+                    height: 48,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFF48C9B0),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.send_rounded, color: Colors.white, size: 24),
+                  ),
                 ),
               ],
             ),
@@ -307,6 +426,7 @@ class _ChatBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: Column(
@@ -328,7 +448,7 @@ class _ChatBubble extends StatelessWidget {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   decoration: BoxDecoration(
-                    color: message.isUser ? const Color(0xFF48C9B0) : Colors.white,
+                    color: message.isUser ? const Color(0xFF48C9B0) : (isDark ? ThemeConfig.darkCard : Colors.white),
                     borderRadius: BorderRadius.only(
                       topLeft: const Radius.circular(20),
                       topRight: const Radius.circular(20),
@@ -347,7 +467,7 @@ class _ChatBubble extends StatelessWidget {
                   child: Text(
                     message.content,
                     style: GoogleFonts.montserrat(
-                      color: message.isUser ? Colors.white : const Color(0xFF2C3E50),
+                      color: message.isUser ? Colors.white : (isDark ? ThemeConfig.darkTextPrimary : const Color(0xFF2C3E50)),
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
                     ),

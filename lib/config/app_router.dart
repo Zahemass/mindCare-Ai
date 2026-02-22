@@ -10,6 +10,9 @@ import '../screens/mood/mood_history_screen.dart';
 import '../screens/chat/chat_screen.dart';
 import '../screens/journal/journal_list_screen.dart';
 import '../screens/journal/journal_entry_screen.dart';
+import '../screens/assessment/assessment_result_screen.dart';
+import '../screens/insights/insights_screen.dart';
+import '../screens/resources/resources_screen.dart';
 
 class AppRouter {
   static final router = GoRouter(
@@ -65,6 +68,24 @@ class AppRouter {
           final id = state.pathParameters['id'];
           return JournalEntryScreen(journalId: id);
         },
+      ),
+      GoRoute(
+        path: '/assessment-result',
+        builder: (context, state) {
+          final extras = state.extra as Map<String, dynamic>?;
+          return AssessmentResultScreen(
+            score: extras?['score'] ?? 0,
+            riskLevel: extras?['riskLevel'] ?? 'Low',
+          );
+        },
+      ),
+      GoRoute(
+        path: '/insights',
+        builder: (context, state) => const InsightsScreen(),
+      ),
+      GoRoute(
+        path: '/resources',
+        builder: (context, state) => const ResourcesScreen(),
       ),
     ],
   );

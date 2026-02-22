@@ -1,21 +1,12 @@
-import 'package:crypto/crypto.dart';
-import 'dart:convert';
 import '../models/user_model.dart';
 import 'storage_service.dart';
-import 'package:uuid/uuid.dart';
+import 'api_service.dart';
 
 class AuthService {
   final StorageService _storage = StorageService();
-  final _uuid = const Uuid();
-  
-  // Hash password
-  String _hashPassword(String password) {
-    final bytes = utf8.encode(password);
-    final digest = sha256.convert(bytes);
-    return digest.toString();
-  }
-  
-  // Sign up
+  final ApiService _apiService = ApiService();
+
+  // Sign up via backend API
   Future<UserModel?> signUp({
     required String email,
     required String password,
@@ -25,82 +16,86 @@ class AuthService {
     List<String>? mentalHealthGoals,
   }) async {
     try {
-      // Check if user already exists
-      final existingPassword = _storage.getPassword(email);
-      if (existingPassword != null) {
-        throw Exception('User already exists with this email');
-      }
-      
-      // Create new user
-      final user = UserModel(
-        id: _uuid.v4(),
+      final data = await _apiService.register(
+        fullName: name,
         email: email,
-        name: name,
+        password: password,
+      );
+
+      // Build user model from response
+      final userData = data['user'];
+      final user = UserModel(
+        id: userData['id'].toString(),
+        email: userData['email'] ?? email,
+        name: userData['fullName'] ?? name,
         age: age,
         gender: gender,
         mentalHealthGoals: mentalHealthGoals ?? [],
       );
-      
-      // Save user and password
+
+      // Save locally for offline access
       await _storage.saveUser(user);
-      await _storage.savePassword(email, _hashPassword(password));
-      
+
       return user;
     } catch (e) {
       print('Sign up error: $e');
-      return null;
+      rethrow;
     }
   }
-  
-  // Login
+
+  // Login via backend API
   Future<UserModel?> login({
     required String email,
     required String password,
   }) async {
     try {
-      // Get stored password
-      final storedPassword = _storage.getPassword(email);
-      if (storedPassword == null) {
-        throw Exception('User not found');
-      }
-      
-      // Verify password
-      final hashedPassword = _hashPassword(password);
-      if (hashedPassword != storedPassword) {
-        throw Exception('Invalid password');
-      }
-      
-      // Get user
-      final user = _storage.getCurrentUser();
-      if (user == null || user.email != email) {
-        throw Exception('User data not found');
-      }
-      
-      // Update last login
-      final updatedUser = user.copyWith(lastLoginAt: DateTime.now());
-      await _storage.saveUser(updatedUser);
-      
-      return updatedUser;
+      final data = await _apiService.login(email, password);
+
+      // Build user model from response
+      final userData = data['user'];
+      final user = UserModel(
+        id: userData['id'].toString(),
+        email: userData['email'] ?? email,
+        name: userData['fullName'] ?? '',
+        lastLoginAt: DateTime.now(),
+      );
+
+      // Save locally for offline access
+      await _storage.saveUser(user);
+
+      return user;
     } catch (e) {
       print('Login error: $e');
-      return null;
+      rethrow;
     }
   }
-  
-  // Logout
+
+  // Logout via backend API
   Future<void> logout() async {
-    // Note: We keep the user data but just mark as logged out
-    // In a real app, you might want to clear session tokens
+    try {
+      await _apiService.logout();
+    } catch (_) {
+      // Still clear local data even if API fails
+    }
+    // Clear ALL local data (user, mood, journal, chat, etc.)
+    await _storage.clearAllData();
   }
-  
-  // Get current user
+
+  // Get current user (from local storage for quick access)
   UserModel? getCurrentUser() {
     return _storage.getCurrentUser();
   }
-  
-  // Update user profile
+
+  // Update user profile via backend API
   Future<bool> updateProfile(UserModel user) async {
     try {
+      await _apiService.updateProfile(fullName: user.name);
+      
+      // Also update goals if present
+      if (user.mentalHealthGoals.isNotEmpty) {
+        await _apiService.setGoals(user.mentalHealthGoals);
+      }
+
       await _storage.saveUser(user);
       return true;
     } catch (e) {
@@ -108,66 +103,51 @@ class AuthService {
       return false;
     }
   }
-  
-  // Change password
-  Future<bool> changePassword({
-    required String email,
-    required String oldPassword,
-    required String newPassword,
-  }) async {
+
+  // Fetch profile from backend and update local storage
+  Future<UserModel?> fetchProfile() async {
     try {
-      final storedPassword = _storage.getPassword(email);
-      if (storedPassword == null) {
-        throw Exception('User not found');
-      }
-      
-      // Verify old password
-      if (_hashPassword(oldPassword) != storedPassword) {
-        throw Exception('Invalid old password');
-      }
-      
-      // Save new password
-      await _storage.savePassword(email, _hashPassword(newPassword));
+      final user = await _apiService.getProfile();
+      await _storage.saveUser(user);
+      return user;
+    } catch (e) {
+      print('Fetch profile error: $e');
+      return null;
+    }
+  }
+
+  // Forgot password
+  Future<bool> forgotPassword(String email) async {
+    try {
+      await _apiService.forgotPassword(email);
       return true;
     } catch (e) {
-      print('Change password error: $e');
+      print('Forgot password error: $e');
       return false;
     }
   }
-  
-  // Reset password (simplified - in real app would send email)
+
+  // Reset password
   Future<bool> resetPassword({
-    required String email,
+    required String token,
     required String newPassword,
   }) async {
     try {
-      final storedPassword = _storage.getPassword(email);
-      if (storedPassword == null) {
-        throw Exception('User not found');
-      }
-      
-      await _storage.savePassword(email, _hashPassword(newPassword));
+      await _apiService.resetPassword(
+        token: token,
+        newPassword: newPassword,
+      );
       return true;
     } catch (e) {
       print('Reset password error: $e');
       return false;
     }
   }
-  
+
   // Delete account
-  Future<bool> deleteAccount(String email, String password) async {
+  Future<bool> deleteAccount() async {
     try {
-      final storedPassword = _storage.getPassword(email);
-      if (storedPassword == null) {
-        throw Exception('User not found');
-      }
-      
-      // Verify password
-      if (_hashPassword(password) != storedPassword) {
-        throw Exception('Invalid password');
-      }
-      
-      // Delete all user data
+      await _apiService.deleteAccount();
       await _storage.clearAllData();
       return true;
     } catch (e) {
@@ -175,9 +155,14 @@ class AuthService {
       return false;
     }
   }
-  
+
   // Check if user is logged in
   bool isLoggedIn() {
     return _storage.getCurrentUser() != null;
+  }
+
+  // Check if authenticated with backend
+  Future<bool> isAuthenticated() async {
+    return await _apiService.isAuthenticated();
   }
 }

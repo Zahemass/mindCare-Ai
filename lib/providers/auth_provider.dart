@@ -1,28 +1,29 @@
 import 'package:flutter/material.dart';
 import '../models/user_model.dart';
 import '../services/auth_service.dart';
+import '../services/api_service.dart';
 
 class AuthProvider with ChangeNotifier {
   final AuthService _authService = AuthService();
-  
+
   UserModel? _currentUser;
   bool _isLoading = false;
   String? _error;
-  
+
   UserModel? get currentUser => _currentUser;
   bool get isLoading => _isLoading;
   String? get error => _error;
   bool get isAuthenticated => _currentUser != null;
-  
+
   AuthProvider() {
     _loadCurrentUser();
   }
-  
+
   void _loadCurrentUser() {
     _currentUser = _authService.getCurrentUser();
     notifyListeners();
   }
-  
+
   Future<bool> signUp({
     required String email,
     required String password,
@@ -34,7 +35,7 @@ class AuthProvider with ChangeNotifier {
     _isLoading = true;
     _error = null;
     notifyListeners();
-    
+
     try {
       final user = await _authService.signUp(
         email: email,
@@ -44,7 +45,7 @@ class AuthProvider with ChangeNotifier {
         gender: gender,
         mentalHealthGoals: mentalHealthGoals,
       );
-      
+
       if (user != null) {
         _currentUser = user;
         _isLoading = false;
@@ -56,14 +57,19 @@ class AuthProvider with ChangeNotifier {
         notifyListeners();
         return false;
       }
+    } on ApiException catch (e) {
+      _error = e.message;
+      _isLoading = false;
+      notifyListeners();
+      return false;
     } catch (e) {
-      _error = e.toString();
+      _error = 'Network error. Please check your connection.';
       _isLoading = false;
       notifyListeners();
       return false;
     }
   }
-  
+
   Future<bool> login({
     required String email,
     required String password,
@@ -71,13 +77,13 @@ class AuthProvider with ChangeNotifier {
     _isLoading = true;
     _error = null;
     notifyListeners();
-    
+
     try {
       final user = await _authService.login(
         email: email,
         password: password,
       );
-      
+
       if (user != null) {
         _currentUser = user;
         _isLoading = false;
@@ -89,20 +95,25 @@ class AuthProvider with ChangeNotifier {
         notifyListeners();
         return false;
       }
+    } on ApiException catch (e) {
+      _error = e.message;
+      _isLoading = false;
+      notifyListeners();
+      return false;
     } catch (e) {
-      _error = e.toString();
+      _error = 'Network error. Please check your connection.';
       _isLoading = false;
       notifyListeners();
       return false;
     }
   }
-  
+
   Future<void> logout() async {
     await _authService.logout();
     _currentUser = null;
     notifyListeners();
   }
-  
+
   Future<bool> updateProfile(UserModel user) async {
     final success = await _authService.updateProfile(user);
     if (success) {
@@ -111,7 +122,59 @@ class AuthProvider with ChangeNotifier {
     }
     return success;
   }
-  
+
+  Future<void> refreshProfile() async {
+    final user = await _authService.fetchProfile();
+    if (user != null) {
+      _currentUser = user;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> forgotPassword(String email) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      final success = await _authService.forgotPassword(email);
+      _isLoading = false;
+      if (!success) {
+        _error = 'Failed to send reset email';
+      }
+      notifyListeners();
+      return success;
+    } catch (e) {
+      _error = e.toString();
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<bool> deleteAccount() async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      final success = await _authService.deleteAccount();
+      if (success) {
+        _currentUser = null;
+      } else {
+        _error = 'Failed to delete account';
+      }
+      _isLoading = false;
+      notifyListeners();
+      return success;
+    } catch (e) {
+      _error = e.toString();
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
   void clearError() {
     _error = null;
     notifyListeners();

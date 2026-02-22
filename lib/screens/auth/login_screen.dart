@@ -4,6 +4,9 @@ import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../config/theme_config.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/mood_provider.dart';
+import '../../providers/chat_provider.dart';
+import '../../providers/journal_provider.dart';
 import '../../utils/validators.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -38,6 +41,12 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!mounted) return;
 
     if (success) {
+      if (mounted) {
+        // Trigger data fetch for the new user
+        context.read<MoodProvider>().fetchFromBackend();
+        context.read<JournalProvider>().fetchFromBackend();
+        context.read<ChatProvider>().fetchFromBackend();
+      }
       context.go('/home');
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -202,37 +211,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 const SizedBox(height: 24),
 
-                // Divider
-                Row(
-                  children: [
-                    Expanded(child: Divider(color: Colors.grey.withOpacity(0.2))),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      child: Text(
-                        'OR CONTINUE WITH',
-                        style: GoogleFonts.montserrat(
-                          fontSize: 10, // Reduced
-                          fontWeight: FontWeight.w600,
-                          color: ThemeConfig.mutedText,
-                          letterSpacing: 1.0,
-                        ),
-                      ),
-                    ),
-                    Expanded(child: Divider(color: Colors.grey.withOpacity(0.2))),
-                  ],
-                ),
-                const SizedBox(height: 24),
-
-                // Social Login Buttons
-                Row(
-                  children: [
-                    Expanded(child: _buildSocialButton('Google', Icons.g_mobiledata, Colors.red)),
-                    const SizedBox(width: 12),
-                    Expanded(child: _buildSocialButton('Apple', Icons.apple, Colors.black)),
-                  ],
-                ),
-                
-                Spacer(flex: 3),
+                const Spacer(flex: 3),
 
                 // Sign Up Link
                 Row(

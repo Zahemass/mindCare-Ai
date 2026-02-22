@@ -16,6 +16,9 @@ class MeditationSession extends HiveObject {
   @HiveField(3)
   int durationMinutes;
   
+  @HiveField(11)
+  int? durationSeconds;
+  
   @HiveField(4)
   String category; // 'anxiety', 'sleep', 'stress', 'mindfulness', 'breathing'
   
@@ -42,6 +45,7 @@ class MeditationSession extends HiveObject {
     required this.title,
     required this.description,
     required this.durationMinutes,
+    this.durationSeconds,
     required this.category,
     this.audioUrl,
     this.script,
@@ -50,6 +54,16 @@ class MeditationSession extends HiveObject {
     List<String>? tags,
     this.instructor,
   }) : tags = tags ?? [];
+
+  String get formattedDuration {
+    if (durationSeconds != null) {
+      final mins = durationSeconds! ~/ 60;
+      final secs = durationSeconds! % 60;
+      if (secs == 0) return '$mins min';
+      return '$mins:${secs.toString().padLeft(2, '0')}';
+    }
+    return '$durationMinutes min';
+  }
   
   // Get category icon
   String get categoryIcon {
@@ -64,6 +78,10 @@ class MeditationSession extends HiveObject {
         return '🧠';
       case 'breathing':
         return '💨';
+      case 'exercise':
+        return '🏃';
+      case 'focus':
+        return '🎯';
       default:
         return '🧘';
     }
@@ -82,6 +100,10 @@ class MeditationSession extends HiveObject {
         return '#E67E22';
       case 'breathing':
         return '#2ECC71';
+      case 'exercise':
+        return '#F1C40F';
+      case 'focus':
+        return '#E74C3C';
       default:
         return '#95A5A6';
     }
@@ -135,16 +157,35 @@ class MeditationSession extends HiveObject {
   
   // From JSON
   factory MeditationSession.fromJson(Map<String, dynamic> json) {
+    // Backend uses 'name' for title and 'duration' in seconds
+    final int durationInSeconds = json['duration'] ?? 600;
+    
+    String finalTitle = json['name'] ?? json['title'] ?? '';
+    final String category = json['category'] ?? 'Meditation';
+    
+    // Make titles more descriptive if they are generic
+    if (!finalTitle.toLowerCase().contains('music') && 
+        !finalTitle.toLowerCase().contains('meditation')) {
+      if (category.toLowerCase() == 'sleep' || 
+          category.toLowerCase() == 'anxiety' || 
+          category.toLowerCase() == 'exercise') {
+        finalTitle = '$finalTitle Music';
+      } else {
+        finalTitle = '$finalTitle Meditation';
+      }
+    }
+
     return MeditationSession(
-      id: json['id'],
-      title: json['title'],
-      description: json['description'],
-      durationMinutes: json['durationMinutes'],
-      category: json['category'],
-      audioUrl: json['audioUrl'],
+      id: (json['id'] ?? json['_id']).toString(),
+      title: finalTitle,
+      description: json['description'] ?? '',
+      durationMinutes: (durationInSeconds / 60).round(),
+      durationSeconds: durationInSeconds,
+      category: category,
+      audioUrl: json['audio_url'] ?? json['audioUrl'],
       script: json['script'],
-      imageUrl: json['imageUrl'],
-      isPremium: json['isPremium'] ?? false,
+      imageUrl: json['image_url'] ?? json['imageUrl'],
+      isPremium: json['is_premium'] ?? json['isPremium'] ?? false,
       tags: List<String>.from(json['tags'] ?? []),
       instructor: json['instructor'],
     );

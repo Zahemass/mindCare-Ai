@@ -19,8 +19,8 @@ class SelfCareScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Self Care')),
-      body: const Center(child: Text('Self Care Activities Coming Soon')),
+      appBar: AppBar(title: const Text('Mind Care')),
+      body: const Center(child: Text('Keep Mind Calm Coming Soon')),
     );
   }
 }

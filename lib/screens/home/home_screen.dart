@@ -6,6 +6,9 @@ import '../../config/theme_config.dart';
 import '../../widgets/glass_container.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/mood_provider.dart';
+import '../../providers/journal_provider.dart';
+import '../../providers/meditation_provider.dart';
+import '../../providers/navigation_provider.dart';
 import 'dart:math' as math;
 
 class HomeScreen extends StatefulWidget {
@@ -62,6 +65,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
     _fadeController.forward();
     _slideController.forward();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<MoodProvider>().fetchFromBackend();
+      context.read<JournalProvider>().fetchFromBackend();
+      context.read<MeditationProvider>().fetchSessions();
+    });
   }
 
   @override
@@ -76,20 +85,29 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   Widget build(BuildContext context) {
     final authProvider = context.watch<AuthProvider>();
     final user = authProvider.currentUser;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final bgColor = isDark ? ThemeConfig.darkBackground : const Color(0xFFF5F7FA);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: bgColor,
       body: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFF48C9B0),
-              Color(0xFF48C9B0),
-              Color(0xFFF5F7FA),
-            ],
-            stops: [0.0, 0.25, 0.4],
+            colors: isDark
+                ? [
+                    const Color(0xFF1A6B5A),
+                    const Color(0xFF152030),
+                    ThemeConfig.darkBackground,
+                  ]
+                : [
+                    const Color(0xFF48C9B0),
+                    const Color(0xFF48C9B0),
+                    const Color(0xFFF5F7FA),
+                  ],
+            stops: const [0.0, 0.25, 0.4],
           ),
         ),
         child: SafeArea(
@@ -169,14 +187,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                               style: GoogleFonts.montserrat(
                                 fontSize: 18,
                                 fontWeight: FontWeight.w700,
-                                color: const Color(0xFF2C3E50),
+                                color: isDark ? ThemeConfig.darkTextPrimary : const Color(0xFF2C3E50),
                                 letterSpacing: 0.2,
                               ),
                             ),
                             GestureDetector(
-                              onTap: () => context.push('/mood-history'),
+                              onTap: () => context.push('/insights'),
                               child: Text(
-                                'Weekly View',
+                                'View Analytics',
                                 style: GoogleFonts.montserrat(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w600,
@@ -197,7 +215,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           style: GoogleFonts.montserrat(
                             fontSize: 18,
                             fontWeight: FontWeight.w700,
-                            color: const Color(0xFF2C3E50),
+                            color: isDark ? ThemeConfig.darkTextPrimary : const Color(0xFF2C3E50),
                             letterSpacing: 0.2,
                           ),
                         ),
@@ -214,23 +232,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           style: GoogleFonts.montserrat(
                             fontSize: 18,
                             fontWeight: FontWeight.w700,
-                            color: const Color(0xFF2C3E50),
+                            color: isDark ? ThemeConfig.darkTextPrimary : const Color(0xFF2C3E50),
                             letterSpacing: 0.2,
                           ),
                         ),
                         const SizedBox(height: 16),
                         Row(
                           children: [
-                            Expanded(
-                              child: _buildActivityCard(
-                                'Breathing',
-                                '3MIN',
-                                Icons.air,
-                                const Color(0xFFFFE5E5),
-                                const Color(0xFFFF6B6B),
-                              ),
-                            ),
-                            const SizedBox(width: 14),
                             Expanded(
                               child: _buildActivityCard(
                                 'Journaling',
@@ -241,9 +249,19 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                 onTap: () => context.push('/journals'),
                               ),
                             ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: _buildActivityCard(
+                                'Wellness Library',
+                                'READ',
+                                Icons.menu_book_rounded,
+                                const Color(0xFFF3E5F5),
+                                const Color(0xFFA569BD),
+                                onTap: () => context.push('/resources'),
+                              ),
+                            ),
                           ],
                         ),
-
                         const SizedBox(height: 24),
                       ],
                     ),
@@ -258,6 +276,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildMoodCard() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final moodProvider = context.watch<MoodProvider>();
     final todayEntry = moodProvider.getTodayEntry();
     final isTracked = todayEntry != null;
@@ -269,11 +288,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         width: double.infinity,
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: isDark ? ThemeConfig.darkSurface : Colors.white,
           borderRadius: BorderRadius.circular(20),
+          border: isDark ? Border.all(color: ThemeConfig.darkBorder) : null,
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.08),
+              color: isDark ? Colors.black.withOpacity(0.2) : Colors.black.withOpacity(0.08),
               blurRadius: 24,
               offset: const Offset(0, 8),
               spreadRadius: -2,
@@ -307,7 +327,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         style: GoogleFonts.montserrat(
                           fontSize: 16,
                           fontWeight: FontWeight.w700,
-                          color: const Color(0xFF2C3E50),
+                          color: isDark ? ThemeConfig.darkTextPrimary : const Color(0xFF2C3E50),
                         ),
                       ),
                       const SizedBox(height: 4),
@@ -339,7 +359,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           style: GoogleFonts.montserrat(
                             fontSize: 15,
                             fontWeight: FontWeight.w700,
-                            color: const Color(0xFF2C3E50),
+                            color: isDark ? ThemeConfig.darkTextPrimary : const Color(0xFF2C3E50),
                           ),
                         ),
                         const SizedBox(height: 2),
@@ -347,7 +367,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           'Track your daily progress',
                           style: GoogleFonts.montserrat(
                             fontSize: 12,
-                            color: const Color(0xFF95A5A6),
+                            color: isDark ? ThemeConfig.darkTextSecondary : const Color(0xFF95A5A6),
                           ),
                         ),
                       ],
@@ -402,84 +422,112 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildProgressCard() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.06),
-            blurRadius: 20,
-            offset: const Offset(0, 4),
-            spreadRadius: -2,
+    return Consumer3<MoodProvider, JournalProvider, MeditationProvider>(
+      builder: (context, moodProvider, journalProvider, meditationProvider, child) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        // Calculate real data
+        bool hasMood = moodProvider.getTodayEntry() != null;
+        bool hasJournal = journalProvider.hasJournaledToday;
+        bool hasMeditation = meditationProvider.hasCompletedMeditationToday;
+
+        int completedGoals = 0;
+        if (hasMood) completedGoals++;
+        if (hasJournal) completedGoals++;
+        if (hasMeditation) completedGoals++;
+
+        const int totalGoals = 3;
+        double progressPercent = completedGoals / totalGoals;
+
+        String description;
+        if (completedGoals == totalGoals) {
+          description = 'Amazing! You\'ve completed all your daily mindfulness goals.';
+        } else if (completedGoals == 0) {
+          description = 'Start your first activity to begin your daily progress.';
+        } else {
+          description = '$completedGoals of $totalGoals daily mindfulness goals completed.';
+        }
+
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: isDark ? ThemeConfig.darkSurface : Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: isDark ? Border.all(color: ThemeConfig.darkBorder) : null,
+            boxShadow: [
+              BoxShadow(
+                color: isDark ? Colors.black.withOpacity(0.2) : Colors.black.withOpacity(0.06),
+                blurRadius: 20,
+                offset: const Offset(0, 4),
+                spreadRadius: -2,
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Row(
-        children: [
-          // Animated Circular Progress
-          TweenAnimationBuilder<double>(
-            duration: const Duration(milliseconds: 1500),
-            tween: Tween(begin: 0.0, end: 0.70),
-            curve: Curves.easeOutCubic,
-            builder: (context, value, child) {
-              return SizedBox(
-                width: 70,
-                height: 70,
-                child: Stack(
+          child: Row(
+            children: [
+              // Animated Circular Progress
+              TweenAnimationBuilder<double>(
+                duration: const Duration(milliseconds: 1500),
+                tween: Tween(begin: 0.0, end: progressPercent),
+                curve: Curves.easeOutCubic,
+                builder: (context, value, child) {
+                  return SizedBox(
+                    width: 70,
+                    height: 70,
+                    child: Stack(
+                      children: [
+                        CustomPaint(
+                          size: const Size(70, 70),
+                          painter: CircularProgressPainter(
+                            progress: value,
+                            progressColor: const Color(0xFF48C9B0),
+                            backgroundColor: isDark ? ThemeConfig.darkCard : const Color(0xFFF0F0F0),
+                          ),
+                        ),
+                        Center(
+                          child: Text(
+                            '${(value * 100).toInt()}%',
+                            style: GoogleFonts.montserrat(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w700,
+                              color: const Color(0xFF48C9B0),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(width: 18),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    CustomPaint(
-                      size: const Size(70, 70),
-                      painter: CircularProgressPainter(
-                        progress: value,
-                        progressColor: const Color(0xFF48C9B0),
-                        backgroundColor: const Color(0xFFF0F0F0),
+                    Text(
+                      completedGoals == totalGoals ? 'Perfect Day!' : 'You\'re doing great!',
+                      style: GoogleFonts.montserrat(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: isDark ? ThemeConfig.darkTextPrimary : const Color(0xFF2C3E50),
                       ),
                     ),
-                    Center(
-                      child: Text(
-                        '${(value * 100).toInt()}%',
-                        style: GoogleFonts.montserrat(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w700,
-                          color: const Color(0xFF48C9B0),
-                        ),
+                    const SizedBox(height: 6),
+                    Text(
+                      description,
+                      style: GoogleFonts.montserrat(
+                        fontSize: 12,
+                        color: isDark ? ThemeConfig.darkTextSecondary : const Color(0xFF7F8C8D),
+                        height: 1.5,
                       ),
                     ),
                   ],
                 ),
-              );
-            },
+              ),
+            ],
           ),
-          const SizedBox(width: 18),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'You\'re doing great!',
-                  style: GoogleFonts.montserrat(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: const Color(0xFF2C3E50),
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  '3 of 5 daily mindfulness goals completed.',
-                  style: GoogleFonts.montserrat(
-                    fontSize: 12,
-                    color: const Color(0xFF7F8C8D),
-                    height: 1.5,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -613,14 +661,16 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildMeditationCard() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? ThemeConfig.darkSurface : Colors.white,
         borderRadius: BorderRadius.circular(20),
+        border: isDark ? Border.all(color: ThemeConfig.darkBorder) : null,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
+            color: isDark ? Colors.black.withOpacity(0.2) : Colors.black.withOpacity(0.06),
             blurRadius: 20,
             offset: const Offset(0, 4),
             spreadRadius: -2,
@@ -702,7 +752,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       style: GoogleFonts.montserrat(
                         fontSize: 18,
                         fontWeight: FontWeight.w700,
-                        color: const Color(0xFF2C3E50),
+                        color: isDark ? ThemeConfig.darkTextPrimary : const Color(0xFF2C3E50),
                       ),
                     ),
                     const SizedBox(height: 6),
@@ -746,40 +796,45 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       ],
                     ),
                     const SizedBox(height: 18),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 10,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF48C9B0),
-                        borderRadius: BorderRadius.circular(20),
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(0xFF48C9B0).withOpacity(0.3),
-                            blurRadius: 8,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(
-                            Icons.play_arrow_rounded,
-                            color: Colors.white,
-                            size: 18,
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            'Start Now',
-                            style: GoogleFonts.montserrat(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.white,
+                    GestureDetector(
+                      onTap: () {
+                        context.read<NavigationProvider>().setIndex(2);
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 10,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF48C9B0),
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF48C9B0).withOpacity(0.3),
+                              blurRadius: 8,
+                              offset: const Offset(0, 4),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.play_arrow_rounded,
+                              color: Colors.white,
+                              size: 18,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Start Activity',
+                              style: GoogleFonts.montserrat(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ],
@@ -800,16 +855,18 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       Color iconColor, {
         VoidCallback? onTap,
       }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return GestureDetector(
       onTap: onTap,
       child: Container(
       height: 140,
       decoration: BoxDecoration(
-        color: bgColor,
+        color: isDark ? ThemeConfig.darkSurface : bgColor,
         borderRadius: BorderRadius.circular(20),
+        border: isDark ? Border.all(color: ThemeConfig.darkBorder) : null,
         boxShadow: [
           BoxShadow(
-            color: iconColor.withOpacity(0.15),
+            color: isDark ? Colors.black.withOpacity(0.2) : iconColor.withOpacity(0.15),
             blurRadius: 15,
             offset: const Offset(0, 6),
             spreadRadius: -2,
@@ -822,11 +879,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.8),
+              color: isDark ? iconColor.withOpacity(0.15) : Colors.white.withOpacity(0.8),
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: iconColor.withOpacity(0.2),
+                  color: iconColor.withOpacity(isDark ? 0.1 : 0.2),
                   blurRadius: 10,
                   offset: const Offset(0, 4),
                 ),
@@ -844,7 +901,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             style: GoogleFonts.montserrat(
               fontSize: 14,
               fontWeight: FontWeight.w600,
-              color: const Color(0xFF2C3E50),
+              color: isDark ? ThemeConfig.darkTextPrimary : const Color(0xFF2C3E50),
             ),
           ),
           const SizedBox(height: 4),
@@ -853,7 +910,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             style: GoogleFonts.montserrat(
               fontSize: 11,
               fontWeight: FontWeight.w500,
-              color: const Color(0xFF7F8C8D),
+              color: isDark ? ThemeConfig.darkTextSecondary : const Color(0xFF7F8C8D),
             ),
           ),
         ],

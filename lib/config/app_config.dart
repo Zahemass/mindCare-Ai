@@ -1,11 +1,19 @@
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
 class AppConfig {
   // App Information
   static const String appName = 'MindCare AI';
   static const String appVersion = '1.0.0';
   
-  // API Configuration (Update with your actual API endpoints)
-  static const String aiApiBaseUrl = 'https://api.example.com'; // Replace with actual API
-  static const String aiApiKey = ''; // Add your API key here
+  // Backend API Configuration
+  // Reads from .env file — update API_BASE_URL in .env to change
+  // Fallback: http://localhost:5000/api
+  static String get apiBaseUrl =>
+      dotenv.env['API_BASE_URL'] ?? 'http://localhost:5000/api';
+
+  // AI API Configuration (handled by backend, kept for reference)
+  static const String aiApiBaseUrl = 'https://api.example.com';
+  static const String aiApiKey = '';
   
   // Feature Flags
   static const bool enablePremiumFeatures = true;

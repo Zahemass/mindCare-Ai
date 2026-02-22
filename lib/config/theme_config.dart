@@ -31,8 +31,13 @@ class ThemeConfig {
   static const Color secondaryGreen = darkTeal;
   static const Color darkGreen = darkTeal;
   
-  static const Color darkBackground = lightBackground; // Force light
-  static const Color darkSurface = lightSurface; // Force light
+  // Dark Theme Colors
+  static const Color darkBackground = Color(0xFF121218);
+  static const Color darkSurface = Color(0xFF1E1E2C);
+  static const Color darkCard = Color(0xFF252536);
+  static const Color darkTextPrimary = Color(0xFFF0F0F5);
+  static const Color darkTextSecondary = Color(0xFF9A9AB0);
+  static const Color darkBorder = Color(0xFF2E2E42);
 
   
   // Spacing
@@ -172,9 +177,159 @@ class ThemeConfig {
     ),
   );
   
-  // Dark Theme - Disabled/Removed visually but kept structure to avoid breakages if used elsewhere briefly
-  // Note: We make it identical to Light Theme or just generic fallback as we are enforcing Light Mode.
-  static ThemeData darkTheme = lightTheme; 
+  // Dark Theme - Premium dark UI
+  static ThemeData darkTheme = ThemeData(
+    useMaterial3: true,
+    brightness: Brightness.dark,
+    primaryColor: primaryTeal,
+    scaffoldBackgroundColor: darkBackground,
+    colorScheme: const ColorScheme.dark(
+      primary: primaryTeal,
+      secondary: darkTeal,
+      tertiary: accentPurple,
+      surface: darkSurface,
+      error: errorRed,
+      onPrimary: Colors.white,
+      onSecondary: Colors.white,
+      onSurface: darkTextPrimary,
+    ),
+    textTheme: GoogleFonts.montserratTextTheme(ThemeData.dark().textTheme).copyWith(
+      displayLarge: GoogleFonts.montserrat(
+        fontSize: 26,
+        fontWeight: FontWeight.bold,
+        color: darkTextPrimary,
+      ),
+      displayMedium: GoogleFonts.montserrat(
+        fontSize: 24,
+        fontWeight: FontWeight.bold,
+        color: darkTextPrimary,
+      ),
+      displaySmall: GoogleFonts.montserrat(
+        fontSize: 20,
+        fontWeight: FontWeight.bold,
+        color: darkTextPrimary,
+      ),
+      headlineLarge: GoogleFonts.montserrat(
+        fontSize: 18,
+        fontWeight: FontWeight.w600,
+        color: darkTextPrimary,
+      ),
+      headlineMedium: GoogleFonts.montserrat(
+        fontSize: 16,
+        fontWeight: FontWeight.w600,
+        color: darkTextPrimary,
+      ),
+      headlineSmall: GoogleFonts.montserrat(
+        fontSize: 15,
+        fontWeight: FontWeight.w600,
+        color: darkTextPrimary,
+      ),
+      bodyLarge: GoogleFonts.montserrat(
+        fontSize: 14,
+        fontWeight: FontWeight.normal,
+        color: darkTextPrimary,
+      ),
+      bodyMedium: GoogleFonts.montserrat(
+        fontSize: 13,
+        fontWeight: FontWeight.normal,
+        color: darkTextPrimary,
+      ),
+      bodySmall: GoogleFonts.montserrat(
+        fontSize: 11,
+        fontWeight: FontWeight.normal,
+        color: darkTextSecondary,
+      ),
+    ),
+    appBarTheme: AppBarTheme(
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      centerTitle: true,
+      titleTextStyle: GoogleFonts.montserrat(
+        fontSize: 18,
+        fontWeight: FontWeight.w600,
+        color: darkTextPrimary,
+      ),
+      iconTheme: const IconThemeData(color: darkTextPrimary),
+    ),
+    cardTheme: CardThemeData(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(radiusM),
+      ),
+      color: darkSurface,
+    ),
+    elevatedButtonTheme: ElevatedButtonThemeData(
+      style: ElevatedButton.styleFrom(
+        elevation: 0,
+        backgroundColor: primaryTeal,
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(horizontal: spacingL, vertical: spacingM),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(radiusM),
+        ),
+        textStyle: GoogleFonts.montserrat(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    ),
+    inputDecorationTheme: InputDecorationTheme(
+      filled: true,
+      fillColor: darkCard,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(radiusM),
+        borderSide: BorderSide.none,
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(radiusM),
+        borderSide: const BorderSide(color: darkBorder, width: 1),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(radiusM),
+        borderSide: const BorderSide(color: primaryTeal, width: 2),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(radiusM),
+        borderSide: const BorderSide(color: errorRed, width: 2),
+      ),
+      contentPadding: const EdgeInsets.symmetric(
+        horizontal: spacingM,
+        vertical: spacingM,
+      ),
+      hintStyle: GoogleFonts.montserrat(color: darkTextSecondary),
+      labelStyle: GoogleFonts.montserrat(color: darkTextSecondary),
+    ),
+    dialogTheme: DialogThemeData(
+      backgroundColor: darkSurface,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(radiusL)),
+      titleTextStyle: GoogleFonts.montserrat(
+        fontSize: 18,
+        fontWeight: FontWeight.w600,
+        color: darkTextPrimary,
+      ),
+    ),
+    bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+      backgroundColor: darkSurface,
+      selectedItemColor: primaryTeal,
+      unselectedItemColor: darkTextSecondary,
+    ),
+    switchTheme: SwitchThemeData(
+      thumbColor: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.selected)) return primaryTeal;
+        return darkTextSecondary;
+      }),
+      trackColor: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.selected)) return primaryTeal.withOpacity(0.4);
+        return darkBorder;
+      }),
+    ),
+    snackBarTheme: SnackBarThemeData(
+      backgroundColor: darkCard,
+      contentTextStyle: GoogleFonts.montserrat(color: darkTextPrimary),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(radiusS)),
+      behavior: SnackBarBehavior.floating,
+    ),
+  );
   
   // Gradient Backgrounds
   static const LinearGradient primaryGradient = LinearGradient(

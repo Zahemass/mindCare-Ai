@@ -63,16 +63,29 @@ class _MoodCheckInScreenState extends State<MoodCheckInScreen> {
 
     if (!mounted) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Daily track updated!',
-          style: GoogleFonts.montserrat(fontWeight: FontWeight.w600),
+    if (moodProvider.error != null && moodProvider.error!.contains('Backend sync failed')) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Saved locally (Backend sync pending)',
+            style: GoogleFonts.montserrat(fontWeight: FontWeight.w600),
+          ),
+          backgroundColor: Colors.orange,
+          behavior: SnackBarBehavior.floating,
         ),
-        backgroundColor: ThemeConfig.primaryTeal,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+      );
+    } else if (moodProvider.error == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Daily track updated!',
+            style: GoogleFonts.montserrat(fontWeight: FontWeight.w600),
+          ),
+          backgroundColor: ThemeConfig.primaryTeal,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
 
     context.pop();
   }

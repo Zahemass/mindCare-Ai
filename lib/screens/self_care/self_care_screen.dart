@@ -1,419 +1,413 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../config/theme_config.dart';
+import '../../providers/meditation_provider.dart';
+import '../../models/meditation_session.dart';
 
-class SelfCareScreen extends StatelessWidget {
+class SelfCareScreen extends StatefulWidget {
   const SelfCareScreen({super.key});
+
+  @override
+  State<SelfCareScreen> createState() => _SelfCareScreenState();
+}
+
+class _SelfCareScreenState extends State<SelfCareScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<MeditationProvider>().fetchSessions();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final size = MediaQuery.of(context).size;
-
-    // Use a specific teal color from the reference image, or fall back to theme
-    final Color tealColor = const Color(0xFF1ABC9C); 
+    final Color tealColor = const Color(0xFF1ABC9C);
 
     return Scaffold(
       backgroundColor: isDark ? ThemeConfig.darkBackground : const Color(0xFFF8F9FA),
-      appBar: AppBar(
-        leading: Padding(
-          padding: const EdgeInsets.only(left: 16.0),
-          child: CircleAvatar(
-            backgroundColor: isDark ? ThemeConfig.darkSurface : Colors.white,
-            child: IconButton(
-              icon: Icon(Icons.arrow_back_ios_new, size: 18, color: isDark ? Colors.white : Colors.black),
-              onPressed: () {
-                // If it's a tab, back might not be needed, but reference shows it.
-                // If it is in a tab, maybe navigate to home tab?
-                // For now, empty or pop if pushed.
-              },
-            ),
-          ),
-        ),
-        title: Text(
-          'Self-Care',
-          style: theme.textTheme.headlineMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 16.0),
-            child: CircleAvatar(
-              backgroundColor: isDark ? ThemeConfig.darkSurface : Colors.white,
-              child: IconButton(
-                icon: Icon(Icons.notifications_none, color: isDark ? Colors.white : Colors.black),
-                onPressed: () {},
+      body: Stack(
+        children: [
+          CustomScrollView(
+            slivers: [
+              SliverAppBar(
+                floating: false,
+                pinned: true,
+                centerTitle: true,
+                toolbarHeight: 60,
+                backgroundColor: isDark ? ThemeConfig.darkBackground : const Color(0xFFF8F9FA),
+                elevation: 0,
+                leading: Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: CircleAvatar(
+                    backgroundColor: isDark ? ThemeConfig.darkSurface : Colors.white,
+                    child: IconButton(
+                      icon: Icon(Icons.arrow_back_ios_new, size: 18, color: isDark ? Colors.white : Colors.black),
+                      onPressed: () => Navigator.maybePop(context),
+                    ),
+                  ),
+                ),
+                title: Text(
+                  'Keep Mind Calm',
+                  style: GoogleFonts.montserrat(
+                    color: isDark ? Colors.white : Colors.black,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+                actions: [
+                  Padding(
+                    padding: const EdgeInsets.only(right: 16.0),
+                    child: CircleAvatar(
+                      backgroundColor: isDark ? ThemeConfig.darkSurface : Colors.white,
+                      child: IconButton(
+                        icon: Icon(Icons.notifications_none, color: isDark ? Colors.white : Colors.black),
+                        onPressed: () {},
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Featured Today
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Top Recommended Music',
+                            style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+                          ),
+                          TextButton(
+                            onPressed: () {},
+                            child: Text('See all', style: TextStyle(color: tealColor, fontWeight: FontWeight.bold)),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      _buildFeaturedCard(context, tealColor),
+                      const SizedBox(height: 32),
+
+                      // popular activities 
+                      Text(
+                        'Mood-Based Music',
+                        style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 16),
+                      
+                      Consumer<MeditationProvider>(
+                        builder: (context, provider, child) {
+                          if (provider.isLoading && provider.sessions.isEmpty) {
+                            return const Center(child: Padding(
+                              padding: EdgeInsets.all(40.0),
+                              child: CircularProgressIndicator(),
+                            ));
+                          }
+                          
+                          final sessions = provider.sessions;
+
+                          if (sessions.isEmpty) {
+                            return Center(
+                              child: Column(
+                                children: [
+                                  Icon(Icons.spa_outlined, size: 60, color: ThemeConfig.mutedText.withOpacity(0.5)),
+                                  const SizedBox(height: 16),
+                                  Text('No activities found.', style: TextStyle(color: ThemeConfig.mutedText)),
+                                ],
+                              ),
+                            );
+                          }
+
+                          return GridView.builder(
+                            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 2,
+                              crossAxisSpacing: 16,
+                              mainAxisSpacing: 16,
+                              childAspectRatio: 0.8,
+                            ),
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            itemCount: sessions.length,
+                            itemBuilder: (context, index) {
+                              final session = sessions[index];
+                              return _buildActivityCard(context, session, tealColor, isDark);
+                            },
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 140), // More space for expanded mini player
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          
+          // Mini Player
+          Positioned(
+            left: 16,
+            right: 16,
+            bottom: 24,
+            child: _buildMiniPlayer(tealColor, isDark),
           ),
         ],
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Search Bar
-            Container(
-              decoration: BoxDecoration(
-                color: isDark ? ThemeConfig.darkSurface : Colors.white,
-                borderRadius: BorderRadius.circular(30),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: TextField(
-                decoration: InputDecoration(
-                  hintText: 'Find an activity...',
-                  hintStyle: TextStyle(color: ThemeConfig.mutedText),
-                  prefixIcon: Icon(Icons.search, color: ThemeConfig.mutedText),
-                  border: InputBorder.none,
-                  enabledBorder: InputBorder.none,
-                  focusedBorder: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            // Categories
-            SizedBox(
-              height: 40,
-              child: ListView(
-                scrollDirection: Axis.horizontal,
-                children: [
-                  _buildCategoryChip('All Activities', true, tealColor, isDark),
-                  _buildCategoryChip('Meditation', false, tealColor, isDark),
-                  _buildCategoryChip('Breathing', false, tealColor, isDark),
-                  _buildCategoryChip('Stories', false, tealColor, isDark),
-                  _buildCategoryChip('Ambient', false, tealColor, isDark),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            // Featured Today
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Featured Today',
-                  style: theme.textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                TextButton(
-                  onPressed: () {},
-                  child: Text(
-                    'See all',
-                    style: TextStyle(color: tealColor, fontWeight: FontWeight.bold),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            _buildFeaturedCard(context, tealColor),
-            const SizedBox(height: 24),
-
-            // Popular Activities
-            Text(
-              'Popular Activities',
-              style: theme.textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 16),
-            GridView.count(
-              crossAxisCount: 2,
-              shrinkWrap: true,
-              crossAxisSpacing: 16,
-              mainAxisSpacing: 16,
-              childAspectRatio: 0.75, // Adjust card aspect ratio
-              physics: const NeverScrollableScrollPhysics(),
-              children: [
-                _buildActivityCard(
-                  context,
-                  '5-min Breathing',
-                  'Stress Relief',
-                  'BEGINNER',
-                  const Color(0xFFA57C5B), // Brownish
-                  true,
-                  tealColor,
-                  isDark,
-                ),
-                _buildActivityCard(
-                  context,
-                  'Daily Affirmations',
-                  'Self Confidence',
-                  'ALL LEVELS',
-                  const Color(0xFFFACC9B), // Beige
-                  false,
-                  tealColor,
-                  isDark,
-                ),
-                _buildActivityCard(
-                  context,
-                  'Guided Zen',
-                  'Meditation',
-                  '20 MIN',
-                  const Color(0xFF2C3E3A), // Dark Green
-                  true,
-                  tealColor,
-                  isDark,
-                ),
-                _buildActivityCard(
-                  context,
-                  'Forest...',
-                  'Sleep & Focus',
-                  'AMBIENT',
-                  const Color(0xFF8D8D5A), // Olive
-                  false,
-                  tealColor,
-                  isDark,
-                ),
-              ],
-            ),
-            // Add some padding at the bottom for scrolling past the FAB or bottom bar
-            const SizedBox(height: 80), 
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCategoryChip(String label, bool isSelected, Color activeColor, bool isDark) {
-    return Container(
-      margin: const EdgeInsets.only(right: 12),
-      child: Material(
-        color: isSelected ? activeColor : (isDark ? ThemeConfig.darkSurface : Colors.white),
-        borderRadius: BorderRadius.circular(25),
-        child: InkWell(
-          onTap: () {},
-          borderRadius: BorderRadius.circular(25),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(25),
-              border: isSelected ? null : Border.all(color: Colors.grey.withOpacity(0.2)),
-            ),
-            child: Center(
-              child: Text(
-                label,
-                style: TextStyle(
-                  color: isSelected ? Colors.white : (isDark ? Colors.white : Colors.grey[800]),
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ),
-        ),
       ),
     );
   }
 
   Widget _buildFeaturedCard(BuildContext context, Color accentColor) {
-    return Container(
-      height: 220,
-      width: double.infinity,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
-        image: const DecorationImage(
-          image: NetworkImage('https://images.unsplash.com/photo-1506126613408-eca07ce68773?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80'), // Placeholder yoga/meditation image
-          fit: BoxFit.cover,
-        ),
-      ),
-      child: Stack(
-        children: [
-          // Gradient Overlay
-          Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(24),
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Colors.transparent,
-                  Colors.black.withOpacity(0.7),
-                ],
-              ),
+    return Consumer<MeditationProvider>(
+      builder: (context, provider, _) {
+        final session = provider.sessions.isNotEmpty ? provider.sessions.first : null;
+        if (session == null) return const SizedBox();
+
+        return Container(
+          height: 200,
+          width: double.infinity,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(24),
+            image: DecorationImage(
+              image: NetworkImage(session.imageUrl ?? 'https://images.unsplash.com/photo-1506126613408-eca07ce68773?auto=format&fit=crop&w=800&q=80'),
+              fit: BoxFit.cover,
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.all(20.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                // Tag
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: accentColor,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Text(
-                    'RECOMMENDED',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 0.5,
-                    ),
+          child: Stack(
+            children: [
+              Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(24),
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Colors.transparent, Colors.black.withOpacity(0.8)],
                   ),
                 ),
-                const SizedBox(height: 12),
-                const Text(
-                  'Morning Mindset Blast',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Row(
+              ),
+              Padding(
+                padding: const EdgeInsets.all(20.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.end,
                   children: [
-                    const Icon(Icons.access_time, color: Colors.white70, size: 16),
-                    const SizedBox(width: 4),
-                    const Text('12 min', style: TextStyle(color: Colors.white70, fontSize: 13)),
-                    const SizedBox(width: 16),
-                    const Icon(Icons.bolt, color: Colors.white70, size: 16),
-                    const SizedBox(width: 4),
-                    const Text('High Energy', style: TextStyle(color: Colors.white70, fontSize: 13)),
-                    const Spacer(),
                     Container(
-                      height: 40,
-                      width: 40,
-                      decoration: BoxDecoration(
-                        color: accentColor,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.play_arrow, color: Colors.white),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(color: accentColor, borderRadius: BorderRadius.circular(8)),
+                      child: const Text('FEATURED', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(session.title, style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        const Spacer(),
+                        GestureDetector(
+                          onTap: () => provider.playSession(session),
+                          child: Container(
+                            height: 44,
+                            width: 44,
+                            decoration: BoxDecoration(color: accentColor, shape: BoxShape.circle),
+                            child: Icon(
+                              provider.currentSession?.id == session.id && provider.isPlaying ? Icons.pause : Icons.play_arrow,
+                              color: Colors.white
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
-  Widget _buildActivityCard(BuildContext context, String title, String subtitle, String tag, Color bgColor, bool isDarkBg, Color accentColor, bool isAppDark) {
-    return Container(
-      decoration: BoxDecoration(
-        color: isAppDark ? ThemeConfig.darkSurface : Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(12.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Image/Color Placeholder
-            Expanded(
-              flex: 4, // More space for image
-              child: Stack(
+  Widget _buildActivityCard(BuildContext context, MeditationSession session, Color accentColor, bool isDark) {
+    return Consumer<MeditationProvider>(
+      builder: (context, provider, _) {
+        final isPlaying = provider.currentSession?.id == session.id && provider.isPlaying;
+
+        return GestureDetector(
+          onTap: () => provider.playSession(session),
+          child: Container(
+            decoration: BoxDecoration(
+              color: isDark ? ThemeConfig.darkSurface : Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 4))],
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(12.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      color: bgColor,
-                      borderRadius: BorderRadius.circular(16),
-                      image: bgColor == const Color(0xFFFACC9B) ? 
-                        const DecorationImage(image: NetworkImage('https://images.unsplash.com/photo-1544367563-12123d8965cd?auto=format&fit=crop&w=400&q=80'), fit: BoxFit.cover) : 
-                        null,
-                    ),
-                    child: bgColor != const Color(0xFFFACC9B) ? 
-                      Center(
-                        child: Icon(
-                          Icons.spa, // Placeholder icon
-                          color: Colors.white.withOpacity(0.5),
-                          size: 40,
+                  Expanded(
+                    child: Stack(
+                      children: [
+                        Container(
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            color: accentColor.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: session.imageUrl != null 
+                            ? ClipRRect(
+                                borderRadius: BorderRadius.circular(16),
+                                child: Image.network(session.imageUrl!, fit: BoxFit.cover),
+                              )
+                            : Center(child: Icon(Icons.spa, color: accentColor, size: 40)),
                         ),
-                      ) : null,
-                  ),
-                   Positioned(
-                    top: 8,
-                    right: 8,
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.2), // Semi-transparent backing
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.favorite_border, color: Colors.white, size: 16),
+                        if (isPlaying)
+                          Container(
+                            decoration: BoxDecoration(
+                              color: Colors.black.withOpacity(0.3),
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: const Center(
+                              child: Icon(Icons.equalizer, color: Colors.white, size: 30),
+                            ),
+                          ),
+                      ],
                     ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    session.title,
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      Icon(isPlaying ? Icons.pause_circle_filled : Icons.play_circle_filled, color: accentColor, size: 24),
+                    ],
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 12),
-            Text(
-              title,
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              subtitle,
-              style: TextStyle(
-                color: ThemeConfig.mutedText,
-                fontSize: 12,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: accentColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    tag,
-                    style: TextStyle(
-                      color: accentColor,
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildMiniPlayer(Color accentColor, bool isDark) {
+    return Consumer<MeditationProvider>(
+      builder: (context, provider, _) {
+        final session = provider.currentSession;
+        if (session == null) return const SizedBox();
+
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: isDark ? ThemeConfig.darkSurface.withOpacity(0.95) : Colors.white.withOpacity(0.95),
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 20, offset: const Offset(0, 5))],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.network(
+                      session.imageUrl ?? 'https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=100',
+                      width: 48,
+                      height: 48,
+                      fit: BoxFit.cover,
                     ),
                   ),
-                ),
-                Container(
-                  height: 28,
-                  width: 28,
-                  decoration: BoxDecoration(
-                    color: accentColor,
-                    shape: BoxShape.circle,
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          session.title,
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        Text(
+                          provider.isPlaying ? 'Now Playing' : 'Paused',
+                          style: TextStyle(color: accentColor, fontSize: 11, fontWeight: FontWeight.w600),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          session.description,
+                          style: TextStyle(
+                            color: isDark ? Colors.white70 : Colors.black54,
+                            fontSize: 10,
+                            height: 1.2,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                  child: const Icon(Icons.play_arrow, color: Colors.white, size: 16),
+                  IconButton(
+                    icon: Icon(provider.isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded, color: accentColor),
+                    onPressed: () => provider.playSession(session),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.stop_rounded, color: Colors.redAccent),
+                    onPressed: () => provider.stopSession(),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              // Progress Bar
+              SliderTheme(
+                data: SliderTheme.of(context).copyWith(
+                  trackHeight: 2,
+                  thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
+                  overlayShape: const RoundSliderOverlayShape(overlayRadius: 14),
+                  activeTrackColor: accentColor,
+                  inactiveTrackColor: accentColor.withOpacity(0.2),
+                  thumbColor: accentColor,
                 ),
-              ],
-            ),
-          ],
-        ),
-      ),
+                child: Slider(
+                  value: provider.position.inSeconds.toDouble(),
+                  max: provider.totalDuration.inSeconds.toDouble() > 0 
+                  ? provider.totalDuration.inSeconds.toDouble() 
+                  : 1,
+                  onChanged: (val) {
+                    provider.seek(Duration(seconds: val.toInt()));
+                  },
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(_formatDuration(provider.position), style: TextStyle(fontSize: 10, color: ThemeConfig.mutedText)),
+                    Text(_formatDuration(provider.totalDuration), style: TextStyle(fontSize: 10, color: ThemeConfig.mutedText)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
+  }
+
+  String _formatDuration(Duration d) {
+    if (d == Duration.zero) return "00:00";
+    String twoDigits(int n) => n.toString().padLeft(2, "0");
+    String twoDigitMinutes = twoDigits(d.inMinutes.remainder(60));
+    String twoDigitSeconds = twoDigits(d.inSeconds.remainder(60));
+    return "$twoDigitMinutes:$twoDigitSeconds";
   }
 }

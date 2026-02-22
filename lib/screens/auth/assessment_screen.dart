@@ -5,6 +5,7 @@ import '../../config/theme_config.dart';
 import '../../widgets/custom_button.dart';
 import '../../widgets/glass_container.dart';
 import '../../providers/auth_provider.dart';
+import '../../services/api_service.dart';
 
 class AssessmentScreen extends StatefulWidget {
   const AssessmentScreen({super.key});
@@ -49,18 +50,55 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
   ];
 
   Future<void> _completeAssessment() async {
-    final authProvider = context.read<AuthProvider>();
-    if (authProvider.currentUser != null) {
-      final updatedUser = authProvider.currentUser!.copyWith(
-        isAssessmentCompleted: true,
-        mentalHealthGoals: [_selectedFocus ?? 'General Well-being', ..._selectedChallenges],
-      );
-      await authProvider.updateProfile(updatedUser);
+    setState(() {
+      _isLoading = true;
+    });
+
+    final apiService = ApiService();
+    final List<Map<String, dynamic>> answers = [
+      {'question': 'Primary Focus', 'score': _focusOptions.indexOf(_selectedFocus!) + 1},
+      {'question': 'Challenges', 'score': _selectedChallenges.length},
+      {'question': 'Frequency of feeling overwhelmed', 'score': _frequencyOptions.indexOf(_moodFrequency!) + 1},
+      // Real clinical questions can be added here
+      {'question': 'How often do you feel sad?', 'score': 3},
+      {'question': 'Do you have trouble sleeping?', 'score': 4},
+    ];
+
+    try {
+      final result = await apiService.submitAssessment(answers);
+      
+      // Also update isAssessmentCompleted on user model
+      final authProvider = context.read<AuthProvider>();
+      if (authProvider.currentUser != null) {
+        final updatedUser = authProvider.currentUser!.copyWith(
+          isAssessmentCompleted: true,
+          mentalHealthGoals: [_selectedFocus ?? 'General Well-being', ..._selectedChallenges],
+        );
+        await authProvider.updateProfile(updatedUser);
+      }
+
       if (mounted) {
-        context.go('/home');
+        context.go('/assessment-result', extra: {
+          'score': result['score'],
+          'riskLevel': result['riskLevel'] ?? 'Moderate',
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: ThemeConfig.errorRed),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
       }
     }
   }
+
+  bool _isLoading = false;
 
   void _nextStep() {
     if (_currentStep < 2) {

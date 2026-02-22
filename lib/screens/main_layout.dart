@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../config/theme_config.dart';
+import '../providers/navigation_provider.dart';
 import 'home/home_screen.dart';
 import 'self_care/self_care_screen.dart';
+import 'resources/resources_screen.dart';
 import 'placeholders.dart' hide SelfCareScreen;
 import 'profile/profile_screen.dart';
 import 'chat/chat_screen.dart';
@@ -14,7 +17,6 @@ class MainLayout extends StatefulWidget {
 }
 
 class _MainLayoutState extends State<MainLayout> {
-  int _selectedIndex = 0;
 
   final List<Widget> _screens = [
     const HomeScreen(),
@@ -27,32 +29,36 @@ class _MainLayoutState extends State<MainLayout> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final navProvider = context.watch<NavigationProvider>();
 
     return Scaffold(
-      body: _screens[_selectedIndex],
+      body: _screens[navProvider.selectedIndex],
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
+          color: isDark ? ThemeConfig.darkSurface : Colors.white,
+          border: isDark
+              ? const Border(top: BorderSide(color: ThemeConfig.darkBorder, width: 1))
+              : null,
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.1),
+              color: isDark ? Colors.black.withOpacity(0.3) : Colors.black.withOpacity(0.08),
               blurRadius: 10,
               offset: const Offset(0, -2),
             ),
           ],
         ),
         child: BottomNavigationBar(
-          currentIndex: _selectedIndex,
+          currentIndex: navProvider.selectedIndex,
           onTap: (index) {
-            setState(() {
-              _selectedIndex = index;
-            });
+            navProvider.setIndex(index);
           },
           type: BottomNavigationBarType.fixed,
           backgroundColor: isDark ? ThemeConfig.darkSurface : Colors.white,
-          selectedItemColor: ThemeConfig.primaryBlue,
-          unselectedItemColor: ThemeConfig.mutedText,
+          selectedItemColor: ThemeConfig.primaryTeal,
+          unselectedItemColor: isDark ? ThemeConfig.darkTextSecondary : ThemeConfig.mutedText,
           showSelectedLabels: true,
           showUnselectedLabels: true,
+          elevation: 0,
           items: const [
             BottomNavigationBarItem(
               icon: Icon(Icons.home_outlined),
@@ -67,7 +73,7 @@ class _MainLayoutState extends State<MainLayout> {
             BottomNavigationBarItem(
               icon: Icon(Icons.self_improvement_outlined),
               activeIcon: Icon(Icons.self_improvement),
-              label: 'Self Care',
+              label: 'Mind Care',
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.person_outline),

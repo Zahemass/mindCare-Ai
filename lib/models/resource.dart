@@ -116,18 +116,18 @@ class Resource {
   // From JSON
   factory Resource.fromJson(Map<String, dynamic> json) {
     return Resource(
-      id: json['id'],
-      title: json['title'],
-      description: json['description'],
-      category: json['category'],
-      type: json['type'],
-      content: json['content'],
-      mediaUrl: json['mediaUrl'],
-      thumbnailUrl: json['thumbnailUrl'],
+      id: (json['id'] ?? json['_id']).toString(),
+      title: json['title'] ?? '',
+      description: json['description'] ?? json['summary'] ?? '',
+      category: json['category'] ?? 'General',
+      type: json['type'] ?? 'article',
+      content: json['content'] ?? '',
+      mediaUrl: json['mediaUrl'] ?? json['media_url'] ?? json['external_url'] ?? json['url'],
+      thumbnailUrl: json['thumbnailUrl'] ?? json['thumbnail_url'],
       tags: List<String>.from(json['tags'] ?? []),
-      readTimeMinutes: json['readTimeMinutes'] ?? 5,
-      isPremium: json['isPremium'] ?? false,
-      createdAt: DateTime.parse(json['createdAt']),
+      readTimeMinutes: json['readTimeMinutes'] ?? json['read_time'] ?? 5,
+      isPremium: json['isPremium'] ?? json['is_premium'] ?? false,
+      createdAt: DateTime.parse(json['createdAt'] ?? json['created_at'] ?? DateTime.now().toIso8601String()),
     );
   }
 }
